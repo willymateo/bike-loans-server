@@ -1,5 +1,10 @@
 # bike-loans-server
-Bike loans server
+Server lo use the ML model to predict bike loans.
+
+## Members:
+- Willy Mateo
+- Sandra Loaiza
+- Kevin Chevez
 
 ## Run server
 Note: First, create and activate an virtual environment.
