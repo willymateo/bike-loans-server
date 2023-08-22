@@ -19,8 +19,12 @@ def predict_by_stations(station_id, df_range_allowed_time):
     df_result = pd.DataFrame(columns=["loans", "loan_datetime"])
 
     start_datetime = df_range_allowed_time["loan_datetime"][0]
-    start_index = df_station_1_merged[df_station_1_merged["loan_datetime"] == start_datetime].index[0]
-    df_sequence_range = df_station_1_merged[start_index - SEQUENCE_LENGTH : start_index +1]
+    start_index = df_station_1_merged[
+        df_station_1_merged["loan_datetime"] == start_datetime
+    ].index[0]
+    df_sequence_range = df_station_1_merged[
+        start_index - SEQUENCE_LENGTH : start_index + 1
+    ]
     df_scaled_loans = scaler.fit_transform(pd.DataFrame(df_sequence_range["loans"]))
     sequence = create_sequences(df_scaled_loans)
 

@@ -11,6 +11,8 @@ ESPOL_DATASET_PATH = path.join(
     pathlib.Path().absolute(), "data", "Reporte Solicitudes ESTUD20230621_143623.xls"
 )
 
+NOT_ALLOWED_HOURS = [0, 1, 2, 3, 4, 5, 6, 17, 18, 19, 20, 21, 22, 23]
+
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 BICIESPOL_WORK_START_TIME = "07:00:00"
