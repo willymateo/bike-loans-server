@@ -3,3 +3,4 @@ tensorflow
 gunicorn
 pandas
 numpy
+openpyxl
