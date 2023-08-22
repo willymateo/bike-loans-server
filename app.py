@@ -54,12 +54,12 @@ def predict_loans():
 
         date_range_business_days = pd.date_range(
             start=start_datetime, end=end_datetime, freq="B"
-        ).to_frame(index=False, name="loans_datetime")
+        ).to_frame(index=False, name="loan_datetime")
 
         time_intervals = create_time_intervals(
             start_datetime,
             end_datetime,
-            date_range_business_days["loans_datetime"],
+            date_range_business_days["loan_datetime"],
         )
         df_range_allowed_time = pd.DataFrame({"loan_datetime": time_intervals})
 
@@ -85,11 +85,23 @@ def predict_loans():
             }
             new_sequence = sequence[0][1:]
             new_sequence = np.append(new_sequence, prediction)
-            new_sequence = new_sequence.reshape(10,1)
-            new_sequence = new_sequence.reshape(1,10,1)
+            new_sequence = new_sequence.reshape(10, 1)
+            new_sequence = new_sequence.reshape(1, 10, 1)
             sequence = new_sequence
 
-        return jsonify({"data": df_result.to_dict()})
+        df_result["loans"] = round(df_result["loans"]).astype(int)
+        df_result["loan_datetime"] = df_result["loan_datetime"].dt.strftime(
+            DATETIME_FORMAT
+        )
+        df_result.set_index("loan_datetime", inplace=True)
+
+        return jsonify(
+            {
+                "stations": {
+                    "1": df_result.to_dict().get("loans"),
+                }
+            }
+        )
     except Exception as e:
         app.logger.error(e)
         return jsonify({"error": "Unexpected error"})
