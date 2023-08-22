@@ -4,7 +4,7 @@ from flask import Flask, request, jsonify
 #  from keras.models import load_model
 #  import numpy as np
 
-app = Flask(__name__)
+app = Flask("ESPOL Bike Loans")
 #  model = load_model("loans_model.h5")
 
 
@@ -29,6 +29,3 @@ def predict_loans():
 
 def preprocess_data():
     return preprocessed_data
-
-
-app.run(debug=True)
