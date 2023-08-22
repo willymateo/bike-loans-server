@@ -3,3 +3,6 @@ tensorflow
 gunicorn
 pandas
 numpy
+openpyxl
+scikit-learn
+flask-cors
