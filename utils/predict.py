@@ -5,7 +5,7 @@ import numpy as np
 import pathlib
 import os
 
-from ..constants import ALLOWED_STATIONS, DATETIME_FORMAT
+from constants import ALLOWED_STATIONS, DATETIME_FORMAT
 
 #  Load models
 station_1_model = load_model(os.path.join("models", "station_1.h5"))
