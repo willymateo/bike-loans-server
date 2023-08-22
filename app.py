@@ -83,10 +83,11 @@ def predict_loans():
                 "loans": inversed_prediction[0][0],
                 "loan_datetime": start_datetime_in_sequence,
             }
-            sequence = sequence[1:]
-            sequence = np.append(
-                sequence, prediction
-            )
+            new_sequence = sequence[0][1:]
+            new_sequence = np.append(new_sequence, prediction)
+            new_sequence = new_sequence.reshape(10,1)
+            new_sequence = new_sequence.reshape(1,10,1)
+            sequence = new_sequence
 
         return jsonify({"data": df_result.to_dict()})
     except Exception as e:
