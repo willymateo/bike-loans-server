@@ -2,12 +2,8 @@ from flask import Flask, request, jsonify
 from datetime import datetime
 from flask_cors import CORS
 import pandas as pd
-import numpy as np
-import pathlib
-import os
 
 from constants import ALLOWED_STATIONS, DATETIME_FORMAT
-from utils.sequence import generate_sequence, scaler
 from utils.predict import predict_by_stations
 from utils.time import create_time_intervals
 
@@ -57,7 +53,7 @@ def predict_loans():
             date_range_business_days["loan_datetime"],
         )
         df_range_allowed_time = pd.DataFrame({"loan_datetime": time_intervals})
-        
+
         stations = {}
         for station_id in station_ids:
             prediction = predict_by_stations(station_id, df_range_allowed_time)
