@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from keras.models import load_model
 from datetime import datetime
+from flask_cors import CORS
 import pandas as pd
 import pathlib
 import os
@@ -13,6 +14,7 @@ station_1_model = load_model(os.path.join("models", "station_1.h5"))
 station_2_model = load_model(os.path.join("models", "station_2.h5"))
 
 app = Flask("ESPOL Bike Loans")
+CORS(app)
 
 
 @app.get("/")
@@ -49,6 +51,7 @@ def predict_loans():
         df_range_business_days = pd.date_range(
             start=start_datetime, end=end_datetime, freq="B"
         ).to_frame(index=False, name="loans_datetime")
+        time_intervals = create_time_intervals(start_time, end_time, date_range)
         print("======================")
         print("======================")
         print(df_range_business_days)
