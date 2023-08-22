@@ -23,15 +23,11 @@ def generate_sequence(data):
         df_station_1_merged["loan_datetime"] == end_datetime
     ].index[0]
 
-    df_sequence_range = df_station_1_merged[
-        start_index - SEQUENCE_LENGTH : end_index
-    ]
-    df_to_predict = df_station_1_merged[start_index:end_index]
-
+    df_sequence_range = df_station_1_merged[start_index - SEQUENCE_LENGTH : end_index]
     df_scaled_loans = scaler.fit_transform(pd.DataFrame(df_sequence_range["loans"]))
     sequence = create_sequences(df_scaled_loans)
 
-    return sequence, df_to_predict
+    return sequence, df_sequence_range
 
 
 def create_sequences(data):

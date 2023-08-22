@@ -3,11 +3,14 @@ from keras.models import load_model
 from datetime import datetime
 from flask_cors import CORS
 import pandas as pd
+import numpy as np
 import pathlib
 import os
 
 from constants import ALLOWED_STATIONS, DATETIME_FORMAT
-from utils.sequence import generate_sequence
+from utils.sequence import generate_sequence, scaler
+from utils.time import create_time_intervals
+
 
 #  Load models
 station_1_model = load_model(os.path.join("models", "station_1.h5"))
@@ -37,9 +40,7 @@ def predict_loans():
             return jsonify({"error": "end_datetime is required"})
 
         if start_datetime > end_datetime:
-            return jsonify(
-                {"error": "start_datetime must be less than end_datetime"}
-            )
+            return jsonify({"error": "start_datetime must be less than end_datetime"})
 
         are_valid_station_ids = all(
             station_id in ALLOWED_STATIONS for station_id in station_ids
@@ -47,31 +48,47 @@ def predict_loans():
 
         if not are_valid_station_ids:
             return jsonify({"error": f"station_ids must be {ALLOWED_STATIONS}"})
-        
-        df_range_business_days = pd.date_range(
+
+        start_datetime = datetime.strptime(start_datetime, DATETIME_FORMAT)
+        end_datetime = datetime.strptime(end_datetime, DATETIME_FORMAT)
+
+        date_range_business_days = pd.date_range(
             start=start_datetime, end=end_datetime, freq="B"
         ).to_frame(index=False, name="loans_datetime")
-        time_intervals = create_time_intervals(start_time, end_time, date_range)
-        print("======================")
-        print("======================")
-        print(df_range_business_days)
-        print("======================")
-        print("======================")
 
-        sequence, df_to_predict = generate_sequence(
+        time_intervals = create_time_intervals(
+            start_datetime,
+            end_datetime,
+            date_range_business_days["loans_datetime"],
+        )
+        df_range_allowed_time = pd.DataFrame({"loan_datetime": time_intervals})
+
+        df_result = pd.DataFrame(columns=["loans", "loan_datetime"])
+
+        sequence, df_sequence_range = generate_sequence(
             {
-                "start_datetime": datetime.strptime(start_datetime, DATETIME_FORMAT),
-                "end_datetime": datetime.strptime(end_datetime, DATETIME_FORMAT),
+                "start_datetime": df_range_allowed_time["loan_datetime"][0],
+                "end_datetime": df_range_allowed_time["loan_datetime"][1],
             }
         )
-        print(df_to_predict)
-        print(sequence)
 
-        prediction = station_1_model.predict(sequence)
-        df_prediction = pd.DataFrame(prediction)
-        print(df_prediction)
+        for index_datetime in df_range_allowed_time.index[:-1]:
+            start_datetime_in_sequence = df_range_allowed_time["loan_datetime"][
+                index_datetime
+            ]
 
-        return jsonify(prediction)
+            prediction = station_1_model.predict(sequence)
+            inversed_prediction = scaler.inverse_transform(prediction)
+            df_result.loc[len(df_result)] = {
+                "loans": inversed_prediction[0][0],
+                "loan_datetime": start_datetime_in_sequence,
+            }
+            sequence = sequence[1:]
+            sequence = np.append(
+                sequence, prediction
+            )
+
+        return jsonify({"data": df_result.to_dict()})
     except Exception as e:
         app.logger.error(e)
         return jsonify({"error": "Unexpected error"})
