@@ -3,7 +3,7 @@ Server lo use the ML model to predict bike loans.
 
 ## Members:
 - Willy Mateo
-- Sandra Loaiza
+- Sandra Loayza
 - Kevin Chevez
 
 ## Run server
