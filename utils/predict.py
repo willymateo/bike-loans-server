@@ -1,57 +1,87 @@
 from sklearn.preprocessing import RobustScaler
 from keras.models import load_model
+from datetime import datetime, timedelta
+from math import ceil, floor
 import pandas as pd
 import numpy as np
 import os
 
 from constants import DATETIME_FORMAT, SEQUENCE_LENGTH
-from utils.sequence import create_sequences
-from utils.data import df_station_1_merged
 
 scaler = RobustScaler()
 
-#  Load models
+# Load models
 station_1_model = load_model(os.path.join("models", "station_1.h5"))
 station_2_model = load_model(os.path.join("models", "station_2.h5"))
+# Load the Testing data
+data_station_1 = pd.read_csv(os.path.join("data", 'data_station_1.csv'))
+data_station_2 = pd.read_csv(os.path.join("data", 'data_station_2.csv'))
+
+def get_previous_loan_values(dataframe, start_date, n_hours):
+  if not isinstance(dataframe['loan_datetime'], pd.DatetimeIndex):            # Convertir la columna loan_datetime a tipo datetime si no lo está
+    dataframe['loan_datetime'] = pd.to_datetime(dataframe['loan_datetime'])
+  
+  start_index = dataframe[dataframe['loan_datetime'] == start_date].index[0]  # Encontrar el índice correspondiente a la fecha de inicio
+  start_index = start_index - 1                                               # Empezar uno hacia atras
+  
+  # Obtener los valores de loans n horas hacia atrás desde el índice de inicio
+  loan_values = []
+  for i in range(n_hours):
+    if start_index - i >= 0:
+      loan_values.append([dataframe.loc[start_index - i, 'loans']])
+
+  loan_values = loan_values[::-1]                                             # Invertir la lista de valores antes de devolverla
+  return np.array(loan_values)
 
 
-def predict_by_stations(station_id, df_range_allowed_time):
-    df_result = pd.DataFrame(columns=["loans", "loan_datetime"])
+def predict_loan(station_id, str_datetime_inicio, str_datetime_fin):
+  df_result = pd.DataFrame(columns=["loans", "loan_datetime"])
+  scaler = RobustScaler()
+  if(station_id == 1):
+    loan_values = get_previous_loan_values(data_station_1, str_datetime_inicio, 10)
+  else:
+    loan_values = get_previous_loan_values(data_station_2, str_datetime_inicio, 10)
 
-    start_datetime = df_range_allowed_time["loan_datetime"][0]
-    start_index = df_station_1_merged[
-        df_station_1_merged["loan_datetime"] == start_datetime
-    ].index[0]
-    df_sequence_range = df_station_1_merged[
-        start_index - SEQUENCE_LENGTH : start_index + 1
-    ]
-    df_scaled_loans = scaler.fit_transform(pd.DataFrame(df_sequence_range["loans"]))
-    sequence = create_sequences(df_scaled_loans)
+  datetime_inicio = datetime.strptime(str_datetime_inicio, '%Y-%m-%d %H:%M:%S')
+  datetime_fin = datetime.strptime(str_datetime_fin, '%Y-%m-%d %H:%M:%S')
 
-    for index_datetime in df_range_allowed_time.index[:-1]:
-        start_datetime_in_sequence = df_range_allowed_time["loan_datetime"][
-            index_datetime
-        ]
+  n_horas = int((datetime_fin - datetime_inicio).total_seconds() / 3600)  # Convertir a entero
 
-        prediction = None
-        if station_id == 1:
-            prediction = station_1_model.predict(sequence)
-        else:
-            prediction = station_2_model.predict(sequence)
+  if pd.DataFrame(loan_values).empty:
+    print('No hay records...')
+  else:
+    loan_values_scaled = scaler.fit_transform(loan_values)
+    loan_values_to_predict = np.array([loan_values_scaled])
 
-        inversed_prediction = scaler.inverse_transform(prediction)
-        df_result.loc[len(df_result)] = {
-            "loans": inversed_prediction[0][0],
-            "loan_datetime": start_datetime_in_sequence,
-        }
-        new_sequence = sequence[0][1:]
-        new_sequence = np.append(new_sequence, prediction)
-        new_sequence = new_sequence.reshape(10, 1)
-        new_sequence = new_sequence.reshape(1, 10, 1)
-        sequence = new_sequence
+    for i in range(n_horas):
+      if(station_id == 1):
+        prediction = scaler.inverse_transform(station_1_model.predict(loan_values_to_predict))[0][0]
+      else:
+        prediction = scaler.inverse_transform(station_2_model.predict(loan_values_to_predict))[0][0]
 
-    df_result["loans"] = round(df_result["loans"]).astype(int)
-    df_result["loan_datetime"] = df_result["loan_datetime"].dt.strftime(DATETIME_FORMAT)
-    df_result.set_index("loan_datetime", inplace=True)
+      if(prediction < 0.25):
+        prediction = floor(prediction)
+      else:
+        prediction = ceil(prediction)
 
-    return df_result
+      # Allocating the result into the result DataFrame
+      df_result.loc[len(df_result)] = {
+          "loans": prediction,
+          "loan_datetime": datetime_inicio + timedelta(hours=i),  # Usar timedelta para sumar horas
+      }
+
+      # Updating the new loan_values content to predict again with the new prediction
+      print(loan_values_to_predict)
+      print(loan_values)
+      print(station_2_model.predict(loan_values_to_predict)[0][0])
+      new_loan_values = loan_values[1:]
+      new_loan_values = np.append(new_loan_values, prediction)
+      loan_values = np.array(new_loan_values)
+
+      loan_values = loan_values.reshape(10, 1)
+      loan_values_scaled = scaler.fit_transform(loan_values)
+      loan_values_to_predict = np.array([loan_values_scaled])
+      print(loan_values_to_predict)
+      print(loan_values)
+
+  return df_result

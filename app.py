@@ -1,11 +1,9 @@
 from flask import Flask, request, jsonify
-from datetime import datetime
 from flask_cors import CORS
 import pandas as pd
 
 from constants import ALLOWED_STATIONS, DATETIME_FORMAT
-from utils.predict import predict_by_stations
-from utils.time import create_time_intervals
+from utils.predict import predict_loan
 
 app = Flask("ESPOL Bike Loans")
 CORS(app)
@@ -40,24 +38,13 @@ def predict_loans():
         if not are_valid_station_ids:
             return jsonify({"error": f"station_ids must be {ALLOWED_STATIONS}"})
 
-        start_datetime = datetime.strptime(start_datetime, DATETIME_FORMAT)
-        end_datetime = datetime.strptime(end_datetime, DATETIME_FORMAT)
-
-        date_range_business_days = pd.date_range(
-            start=start_datetime, end=end_datetime, freq="B"
-        ).to_frame(index=False, name="loan_datetime")
-
-        time_intervals = create_time_intervals(
-            start_datetime,
-            end_datetime,
-            date_range_business_days["loan_datetime"],
-        )
-        df_range_allowed_time = pd.DataFrame({"loan_datetime": time_intervals})
 
         stations = {}
         for station_id in station_ids:
-            prediction = predict_by_stations(station_id, df_range_allowed_time)
-            stations[station_id] = prediction.to_dict().get("loans")
+            prediction = predict_loan(station_id, start_datetime, end_datetime)
+            prediction.set_index('loan_datetime', inplace=True)  # Establecer la columna como índice
+            prediction.index = prediction.index.strftime(DATETIME_FORMAT)
+            stations[station_id] = prediction['loans'].to_dict()  # Obtener el diccionario de predicciones de préstamos
 
         return jsonify({"stations": stations})
     except Exception as e:
